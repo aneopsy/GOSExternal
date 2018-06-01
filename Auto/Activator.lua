@@ -31,17 +31,23 @@ function __Activator:__init()
 	self.ActivatorMenu.Healing:MenuElement({id = "Auto", name = "Use Healing Items", value = true, toggle = true})
 	self.ActivatorMenu.Healing:MenuElement({id = "Life", name = "% Life", value = 50, min = 1, max = 100, step = 1})
 	
+	
 	self.ActivatorMenu:MenuElement({id = "Cleanse", name = "Cleanse", type = MENU})
 	self.ActivatorMenu.Cleanse:MenuElement({id = "CC", name = "CC Settings", type = MENU})	
 	for _, cc in pairs(self.CCInfo) do
 		self.ActivatorMenu.Cleanse.CC:MenuElement({id = cc.Type, name = cc.Name, value = cc.Value})
 	end
-	self.ActivatorMenu.Cleanse:MenuElement({id="Auto", name="Use Always", value = false})
-	self.ActivatorMenu.Cleanse:MenuElement({id="Combo", name="Use In Combo", value = true})
-		
+	self.ActivatorMenu.Cleanse:MenuElement({id="Combo", name="Only Use In Combo", value = true})
+	
+	
 	self.ActivatorMenu:MenuElement({id = "Damage", name = "Damage", type = MENU})
-	self.ActivatorMenu.Damage:MenuElement({id="Killsteal", name="Killsteal", value = true})
-	self.ActivatorMenu.Damage:MenuElement({id="Combo", name="AA Reset (Combo)", value = true})
+	self.ActivatorMenu.Damage:MenuElement({id = "AAReset", name = "Tiamat/Hydra Usage", type = MENU})
+	self.ActivatorMenu.Damage.AAReset:MenuElement({id="Killsteal", name="Killsteal", value = true})
+	self.ActivatorMenu.Damage.AAReset:MenuElement({id="Combo", name="AA Reset (Combo)", value = true})
+	
+	self.ActivatorMenu.Damage:MenuElement({id = "Ranged", name = "BOTRK/Gunblade Usage", type = MENU})
+	self.ActivatorMenu.Damage.Ranged:MenuElement({id="Killsteal", name = "Killsteal", value = true})
+	self.ActivatorMenu.Damage.Ranged:MenuElement({id="Radius", name= "Peel Enemies [Combo]", value = 300, min = 50, max = 600, step = 25})
 		
 	self.Inventory = {}
 	--Initialize empty collection so we can read existing items at start
@@ -69,10 +75,12 @@ function __Activator:__init()
 			Tick = self.Exhaust,
 			Initialize = function () 
 				local m = self.ActivatorMenu.Summoners:MenuElement({id = "Exhaust", name = "Exhaust", type = MENU})
-				m:MenuElement{id = "Radius", name = "Radius", value = 300, min = 100, max = 700, step = 50}
-				m:MenuElement{id = "Combo", name = "Combo Only", value = true}
+				m:MenuElement{id = "Radius", name = "Peel Radius", value = 300, min = 100, max = 700, step = 50}
+				m:MenuElement{id = "Combo", name = "Use only in Combo", value = true}
+				m:MenuElement{id = "Active", name = "Enable", value = true}
 			end
 		},
+		
 		["SummonerDot"] = { 
 			Tick = self.Ignite, 
 			Initialize = function () 
@@ -81,6 +89,7 @@ function __Activator:__init()
 				m:MenuElement{id = "Killsteal", name = "Killsteal", value = true}
 			end
 		},
+		
 		["SummonerHeal"] = { 
 			Tick = self.Heal,
 			Initialize = function () 
@@ -89,6 +98,7 @@ function __Activator:__init()
 				m:MenuElement{id = "Combo", name = "Combo Only", value = false}
 			end
 		},
+		
 		["SummonerBarrier"] = { 
 			Tick = self.Barrier,
 			Initialize = function () 
@@ -97,54 +107,213 @@ function __Activator:__init()
 				m:MenuElement{id = "Combo", name = "Combo Only", value = false}
 			end
 		},
+		["SummonerBoost"] = { 
+			Tick = self.Cleanse,
+			Initialize = function () end
+		},		
 	}
 	
-	self.ConsumableItems = {
-		[2010] = {name = "Biscuit of Rejuvenation",	buffName = "ItemMiniRegenPotion"},
-		[2003] = {name = "Health Potion",	buffName = "RegenerationPotion"},
-		[2031] = {name = "Refillable Potion",	buffName = "ItemCrystalFlask"},
-		[2032] = {name = "Hunter's Potion",	buffName = "ItemCrystalFlaskJungle"},
-		[2033] = {name = "Corrupting Potion",	buffName = "ItemDarkCrystalFlask"},
-	}
-	
-	self.WardingItems = {
-		[3340] = {name = "Warding Totem",	range = 600},
-		[3098] = {name = "Frostfang",	range = 600},
-		[3092] = {name = "Remnant of the Watchers",	range = 600},
-		[3096] = {name = "Nomad's Medallion",	range = 600},
-		[3069] = {name = "Remnant of the Ascended",	range = 600},
-		[3097] = {name = "Targon's Brace",	range = 600},
-		[3401] = {name = "Remnant of the Aspect",	range = 600},
-		[2055] = {name = "Control Ward",	range = 600},
-		[3363] = {name = "Farsight Alteration",	range= 4000}
-	}
-	
-	self.DamageItems = {
-		[3077] = {name = "Tiamat", range = 300},
-		[3074] = {name = "Ravenous Hydra",  range = 300},
-		[3748] = {name = "Titanic Hydra", range = 300},
-		[3153] = {name = "Blade of the Ruined King", range = 600},
-		[3144] = {name = "Bilgewater Cutlass", range = 600},
-		[3146] = {name = "Hextech Gunblade", range = 700},
-		--[3152] = {name = "Hextech Protobelt-01", range = 800},
-		--[3030] = {name = "Hextech GLP-800", range = 800},
-	}
-	self.ShieldItems = {
-		[2420] = {name = "Stopwatch", effect = "Statis"},
-		[3157] = {name = "Zhonya's Hourglass", effect = "Statis"},
+	self.ItemFunctions = {
+		[3077] = {Name = "Tiamat", OnAttack = self.AAResetItem },
+		[3074] = {Name = "Ravenous Hydra", OnAttack = self.AAResetItem },
+		[3748] = {Name = "Titanic Hydra", OnAttack = self.AAResetItem },
 		
-		[3140] = {name = "Quicksilver Sash", target = "Self", effect = "Cleanse"},
-		[3139] = {name = "Mercurial Scimittar", target = "Self", effect = "Cleanse"},
-		[3222] = {name = "Mikael's Crucible", target = "Ally", effect = "Cleanse", Range = 650},
+		[3153] = {Name = "Blade of the Ruined King", OnTick = self.RangedItem},
+		[3144] = {Name = "Bilgewater Cutlass", OnTick = self.RangedItem},
+		[3146] = {Name = "Hextech Gunblade", OnTick = self.RangedItem},		
 		
-		[3190] = {name = "Locket of the Iron Solari", target = "Self", effect = "Shield", Radius = 700},
+		[3190] = {
+			Name = "Locket of the Iron Solari", 
+			OnMenu = function()
+				local m = self.ActivatorMenu:MenuElement({id = 3190, name = "Locket of the Iron Solari", type = MENU})
+				m:MenuElement{id = "Auto", name = "Auto Cast", value = true}
+				m:MenuElement{id = "Count", name = "Minimum Ally Count", value = 2, min = 1, max = 5, step = 1}
+				m:MenuElement{id = "Health", name = "Health %", value = 50, min = 1, max = 100, step = 1}
+				m:MenuElement{id = "Damage", name = "Damage %", value = 10, min = 1, max = 100, step = 1}
+			end,
+			OnTick = function(slot)
+				local realSlot = slot.Slot
+				local spellData = myHero:GetSpellData(realSlot)
+				if spellData.currentCd < .5 and (Activator.LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO] or Activator.ActivatorMenu[3190].Auto:Value()) then
+					local targetCount = 0
+					local targetCountRequired = Activator.ActivatorMenu[3190].Count:Value() 
+					for i = 1, LocalGameHeroCount() do
+						local hero = LocalGameHero(i)
+						if CanTargetAlly(hero) and Activator.LocalGeometry:IsInRange(myHero.pos, hero.pos, spellData.range) then
+							if CurrentPctLife(hero) <= Activator.ActivatorMenu[3190].Health:Value() then
+								local incomingDamage = Activator.LocalDamageManager:RecordedIncomingDamage(hero)
+								if incomingDamage / hero.health * 100 >= Activator.ActivatorMenu[3190].Damage:Value() then
+									targetCount = targetCount + 1
+									if targetCount >= targetCountRequired then break end
+								end
+							end
+						end
+					end
+					if targetCount >= targetCountRequired then
+						Control.CastSpell(Activator.ItemHotkeys[realSlot])
+					end
+				end
+			end
+		},
+		
+		[3040] = {Name = "Seraphs Embrace", 
+			OnMenu = function()
+				local m = self.ActivatorMenu:MenuElement({id = 3040, name = "Seraphs Embrace", type = MENU})
+				m:MenuElement{id = "Auto", name = "Cast Without Combo", value = true}
+				m:MenuElement{id = "Health", name = "Health %", value = 30, min = 1, max = 100, step = 1}
+			end,
+			OnTick = function(slot)
+				local realSlot = slot.Slot
+				local spellData = myHero:GetSpellData(realSlot)
+				if spellData.currentCd < .5 and (Activator.LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO] or Activator.ActivatorMenu[3040].Auto:Value()) then
+					local incomingDamage = Activator.LocalDamageManager:RecordedIncomingDamage(myHero)
+					local remainingLifePct = (myHero.health - incomingDamage) / myHero.maxHealth * 100
+					if remainingLifePct <= Activator.ActivatorMenu[3040].Health:Value() and incomingDamage / myHero.health  * 100 > 25 then
+						Control.CastSpell(Activator.ItemHotkeys[realSlot])
+					end
+				end
+			end
+		},
+		[3140] = {	Name = "Quicksilver Sash",	OnTick = self.CleanseSelf	},
+		[3139] = {	Name = "Mercurial Scimittar",	OnTick = self.CleanseSelf	},
+		[3222] = {	Name = "Mikael's Crucible",	
+		OnMenu = function()
+			local m = self.ActivatorMenu:MenuElement({id = 3222, name = "Mikael's Crucible", type = MENU})			
+			
+			m:MenuElement({id = "CC", name = "CC Settings", type = MENU})	
+			for _, cc in pairs(self.CCInfo) do
+				m.CC:MenuElement({id = cc.Type, name = cc.Name, value = cc.Value})
+			end
+			
+			m:MenuElement({id = "Targets", name = "Target Settings", type = MENU})
+			for i = 1, LocalGameHeroCount() do
+				local hero = LocalGameHero(i)
+				if hero.isAlly then
+					m.Targets:MenuElement({id = hero.networkID, name = hero.charName, value = true })
+				end
+			end
+			m:MenuElement({id="Combo", name="Use Only In Combo", value = false})
+		end,		
+		OnTick = self.CleanseTarget	},
+		
+		[3905] = {	Name = "Twin Shadows",
+		OnMenu = function ()
+			local m = self.ActivatorMenu:MenuElement({id = 3905, name = "Twin Shadows", type = MENU})
+			m:MenuElement({id = "Range", name = "Max Cast Distance", value = 2500, min = 500, max = 4000, step = 100})
+			m:MenuElement({id = "Radius", name = "Minimum Enemy Distance", value = 500, min = 100, max = 2000, step = 50})
+		end,
+		OnTick = function(slot)
+			local realSlot = slot.Slot
+			local spellData = myHero:GetSpellData(realSlot)
+			if spellData.currentCd < .5 and Activator.LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO] then
+				for i = 1, LocalGameHeroCount() do
+					local hero = LocalGameHero(i)
+					if CanTarget(hero) and Activator.LocalGeometry:IsInRange(myHero.pos, hero.pos, Activator.ActivatorMenu[3905].Range:Value()) and Activator:ClosestAlly(hero.pos, 90000) <= Activator.ActivatorMenu[3905].Radius:Value() then						
+						Control.CastSpell(Activator.ItemHotkeys[realSlot])
+					end
+				end
+			end
+		end
+		},
+		[3107] = {	Name = "Redemption",
+		OnMenu = function ()
+			local m = self.ActivatorMenu:MenuElement({id = 3107, name = "Redemption", type = MENU})
+			
+			m:MenuElement({id = "Targets", name = "Target Settings", type = MENU})
+			for i = 1, LocalGameHeroCount() do
+				local hero = LocalGameHero(i)
+				if hero.isAlly then
+					m.Targets:MenuElement({id = hero.networkID, name = hero.charName, value = 50, min = 0, max = 100, step = 1 })
+				end
+			end
+			
+			m:MenuElement({id = "Count", name = "Minimum Target Count", value = 3, min = 1, max = 5, step = 1})
+			m:MenuElement({id = "Auto", name = "Cast Outside Combo Mode", value = true})
+		end,
+		OnTick = function(slot)
+			local realSlot = slot.Slot
+			local spellData = myHero:GetSpellData(realSlot)			
+			if spellData.currentCd < .5 and (Activator.LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO] or Activator.ActivatorMenu[3107].Auto:Value())then
+				for i = 1, LocalGameHeroCount() do
+					local hero = LocalGameHero(i)
+					if CanTargetAlly(hero) and Activator.LocalGeometry:IsInRange(myHero.pos, hero.pos, 5500) and Activator.ActivatorMenu[3107].Targets[hero.networkID] then
+						--Count total targets who can be hit after the delay
+						local incomingDamage = Activator.LocalDamageManager:RecordedIncomingDamage(hero)
+						local remainingLifePct = (hero.health - incomingDamage) / hero.maxHealth * 100		
+						local origin = Activator.LocalGeometry:PredictUnitPosition(hero, 2.5)
+						if Activator.LocalGeometry:IsInRange(myHero.pos, origin, 5500) and Activator.ActivatorMenu[3107].Targets[hero.networkID]:Value() >= remainingLifePct then
+							--Count targets inside the radius
+							local targetCount = Activator:EnemyCount(origin, 600,2.5) + Activator:AllyCount(origin, 600,2.5)
+							if targetCount >= Activator.ActivatorMenu[3107].Count:Value() then
+								--Need to cast it to mini map instead
+								Activator:CastSpell(Activator.ItemHotkeys[realSlot], origin)
+							end
+						end
+					end
+				end
+			end
+		end
+		},
 	}
 	
-	DelayAction(function () self.LoadCompleted() end, math.max(2,30 - Game.Timer()))
+	
+	self.ItemAttackCallbacks = {}
+	self.ItemTickCallbacks = {}
+	
+	DelayAction(function () self.LoadCompleted() end, 1)
+end
+
+function __Activator:EnemyCount(origin, range, delay)
+	local count = 0
+	for i  = 1,LocalGameHeroCount(i) do
+		local enemy = LocalGameHero(i)
+		local enemyPos = enemy.pos
+		if delay then
+			enemyPos= Activator.LocalGeometry:PredictUnitPosition(enemy, delay)
+		end
+		if enemy and Activator:CanTarget(enemy) and Activator.LocalGeometry:IsInRange(origin, enemyPos, range) then
+			count = count + 1
+		end			
+	end
+	return count
+end
+
+function __Activator:AllyCount(origin, range, delay)
+	local count = 0
+	for i  = 1,LocalGameHeroCount(i) do
+		local ally = LocalGameHero(i)
+		local allyPos = ally.pos
+		if delay then
+			allyPos= Activator.LocalGeometry:PredictUnitPosition(ally, delay)
+		end
+		if ally and Activator:CanTargetAlly(ally) and Activator.LocalGeometry:IsInRange(origin, allyPos, range) then
+			count = count + 1
+		end			
+	end
+	return count
+end
+function __Activator:ClosestAlly(origin, range)
+	local distance = range
+	for i = 1,LocalGameHeroCount()  do
+		local hero = LocalGameHero(i)
+		if hero and Activator:CanTargetAlly(hero) then
+			local d =  Activator.LocalGeometry:GetDistance(origin, hero.pos)
+			if d < range and d < distance then
+				distance = d
+			end
+		end
+	end
+	if distance < range then
+		return distance
+	end
 end
 
 function __Activator:CanTarget(target)
 	return target and target.pos and target.isEnemy and target.alive and target.health > 0 and target.visible and target.isTargetable
+end
+
+function __Activator:CanTargetAlly(target)
+	return target and target.pos and target.isAlly and target.alive and target.health > 0 and target.visible and target.isTargetable
 end
 
 
@@ -182,6 +351,13 @@ function __Activator:CastSpell(key, pos, isLine)
 end
 
 function __Activator:LoadCompleted()
+
+	if not _G.Alpha or not _G.Alpha.DamageManager or not _G.Alpha.Geometry then
+		DelayAction(function () self.LoadCompleted() end, 1)
+		print("Delaying")
+		return
+	end
+	
 	Activator.LocalGeometry = _G.Alpha.Geometry
 	Activator.LocalDamageManager = _G.Alpha.DamageManager
 	Activator.LocalObjectManager = _G.Alpha.ObjectManager
@@ -209,22 +385,49 @@ function __Activator:LoadCompleted()
 end
 
 function __Activator:OnBuyItem(item, slot)
+	if self.ItemFunctions[item.itemID] then
+		if self.ItemFunctions[item.itemID].OnMenu then
+			self.ItemFunctions[item.itemID]:OnMenu()
+		end
+		
+		if self.ItemFunctions[item.itemID].OnAttack then
+			table.insert(self.ItemAttackCallbacks, { Tick = self.ItemFunctions[item.itemID].OnAttack, Item = item, Slot = slot})
+		elseif self.ItemFunctions[item.itemID].OnTick then
+			table.insert(self.ItemTickCallbacks, {Tick = self.ItemFunctions[item.itemID].OnTick, Item = item, Slot = slot})
+		end
+	end
 end
 
-function __Activator:OnSellItem(item, slot)	
+function __Activator:OnSellItem(item, slot)
+	if Activator.ActivatorMenu[item.itemID] then
+		Activator.ActivatorMenu[item.itemID]:Remove()
+	end
+	for _, cb in pairs(self.ItemAttackCallbacks) do		
+		if cb.Item.itemID == item.itemID then
+			table.remove(self.ItemAttackCallbacks, _)
+		end
+	end
+	for _, cb in pairs(self.ItemTickCallbacks) do		
+		if cb.Item.itemID == item.itemID then
+			table.remove(self.ItemTickCallbacks, _)
+		end
+	end
 end
 
 local nextTick = Game.Timer()
 function __Activator:Tick()	
 	if nextTick > Game.Timer() then return end
-	nextTick = Game.Timer() + .25
-	
-	if self.Summoner1 and myHero:GetSpellData(SUMMONER_1).currentCd < 1 then
-		
+	nextTick = Game.Timer() + .25	
+	if self.Summoner1 and myHero:GetSpellData(SUMMONER_1).currentCd < 1 then		
 		self:Summoner1(SUMMONER_1, HK_SUMMONER_1)
 	end
+	
 	if self.Summoner2 and myHero:GetSpellData(SUMMONER_2).currentCd < 1 then
 		self:Summoner2(SUMMONER_2, HK_SUMMONER_2)
+	end
+	
+	for i = 1, #self.ItemTickCallbacks do
+		self.ItemTickCallbacks[i]:Tick(self.ItemTickCallbacks[i].Slot)
 	end
 end
 
@@ -237,7 +440,7 @@ function __Activator:CheckItems()
 			if self.Inventory[i].valid == false then
 				self.Inventory[i].valid = true
 				self.Inventory[i].data = myHero:GetItemData(i)
-				self.Inventory[i].spell = self.LocalDamageManager.MasterSkillLookupTable[myHero:GetItemData(i).itemID]
+				self.Inventory[i].spell = Activator.LocalDamageManager.MasterSkillLookupTable[myHero:GetItemData(i).itemID]
 				self:OnBuyItem(myHero:GetItemData(i), i)			
 			end
 		else
@@ -252,19 +455,30 @@ end
 
 
 function __Activator:Exhaust(spellSlot, hotkey)
-	
+	if self.ActivatorMenu.Summoners.Exhaust.Active:Value() and (self.ActivatorMenu.Summoners.Exhaust.Combo:Value() or Activator.LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO]) then
+		for i = 1, LocalGameHeroCount() do
+			local hero = LocalGameHero(i)
+			if CanTarget(hero) and Activator.LocalGeometry:IsInRange(myHero.pos, hero.pos, 650) then
+				if Activator:ClosestAlly(hero.pos, 90000) <= self.ActivatorMenu.Summoners.Exhaust.Radius:Value() then
+					Activator:CastSpell(hotkey, hero)
+					return
+				end
+			end
+		end
+	end
 end
 
 function __Activator:Ignite(spellSlot, hotkey)
+	if not myHero or not myHero.levelData then return end
 	for i = 1, LocalGameHeroCount() do
 		local hero = LocalGameHero(i)
-		if CanTarget(hero) and LocalGeometry:IsInRange(myHero.pos, hero.pos, 600) then	
-			local remainingHealth = hero.health - LocalDamageManager:RecordedIncomingDamage(hero)
+		if CanTarget(hero) and Activator.LocalGeometry:IsInRange(myHero.pos, hero.pos, 600) then	
+			local remainingHealth = hero.health - Activator.LocalDamageManager:RecordedIncomingDamage(hero)
 			if not remainingHealth then
 				remainingHealth = hero.health
 			end
 			if remainingHealth > 0 then
-				if remainingHealth < ({80,105,130,155,180,205,230,255,280,305,330,355,380,405,430,455,480,505})[myHero.levelData.lvl] then	
+				if remainingHealth < ({80,105,130,155,180,205,230,255,280,305,330,355,380,405,430,455,480,505})[myHero.levelData.lvl] and Activator.ActivatorMenu.Summoners.Ignite.Killsteal:Value() then	
 					Activator:CastSpell(hotkey, hero)
 				elseif Activator.LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO] and Activator.ActivatorMenu.Summoners.Ignite.Combo:Value() then
 					Activator:CastSpell(hotkey, hero)
@@ -276,7 +490,7 @@ end
 
 function __Activator:Barrier(spellSlot, hotkey)
 	if myHero.alive and not Activator.ActivatorMenu.Summoners.Barrier.Combo:Value() or Activator.LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO] then
-		local incomingDamage = LocalDamageManager:RecordedIncomingDamage(myHero)
+		local incomingDamage = Activator.LocalDamageManager:RecordedIncomingDamage(myHero)
 		local remainingLifePct = (myHero.health - incomingDamage) / myHero.maxHealth * 100
 		if remainingLifePct <= Activator.ActivatorMenu.Summoners.Barrier.Health:Value() and incomingDamage / myHero.health  * 100 > 25 then
 			Control.CastSpell(hotkey)
@@ -286,7 +500,7 @@ end
 
 function __Activator:Heal(spellSlot, hotkey)
 	if myHero.alive and not Activator.ActivatorMenu.Summoners.Heal.Combo:Value() or Activator.LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO] then	
-		local incomingDamage = LocalDamageManager:RecordedIncomingDamage(myHero)
+		local incomingDamage = Activator.LocalDamageManager:RecordedIncomingDamage(myHero)
 		local remainingLifePct = (myHero.health - incomingDamage) / myHero.maxHealth * 100
 		if remainingLifePct <= Activator.ActivatorMenu.Summoners.Heal.Health:Value() and incomingDamage / myHero.health  * 100 > 25 then
 			Control.CastSpell(hotkey)
@@ -295,38 +509,101 @@ function __Activator:Heal(spellSlot, hotkey)
 end
 
 function __Activator:Cleanse(spellSlot, hotkey)
+	if Activator.ActivatorMenu.Cleanse.Combo:Value() and not Activator.LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO] then return end	
+	local spellData = myHero:GetSpellData(hotkey)
+	if spellData.currentCd < .5 then	
+		for i = 0, myHero.buffCount do
+			local buff = myHero:GetBuff(i)
+			if buff.duration > 0 and Activator.ActivatorMenu.Cleanse.CC[buff.type] and Activator.ActivatorMenu.Cleanse.CC[buff.type]:Value() then
+				Control.CastSpell(hotkey)
+				return
+			end
+		end
+	end
 end
 
-function __Activator:OnPostAttack()
-	--Check for E AA reset
-	if not myHero.activeSpell.target then return end
-	local target = LocalObjectManager:GetHeroByHandle(myHero.activeSpell.target)
-	if not target then return end
+function __Activator:CleanseSelf(slot)
+	--Check if we want to activate only in combo or not	
+	if Activator.ActivatorMenu.Cleanse.Combo:Value() and not Activator.LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO] then return end	
+	local spellData = myHero:GetSpellData(slot)
+	if spellData.currentCd < .5 then	
+		for i = 0, myHero.buffCount do
+			local buff = myHero:GetBuff(i)
+			if buff.duration > 0 and Activator.ActivatorMenu.Cleanse.CC[buff.type] and Activator.ActivatorMenu.Cleanse.CC[buff.type]:Value() then
+				Control.CastSpell(Activator.ItemHotkeys[slot])
+				return
+			end
+		end
+	end
+end
 
-	--Check damage items in our inventory
-	for i = ITEM_1, ITEM_7 do
-		local itemInfo = self.Inventory[i]		
-		if itemInfo.valid then
-			local itemID = itemInfo.data.itemID
-			if self.DamageItems[itemID] then
-				local spellData = myHero:GetSpellData(i)
-				if spellData.currentCd < .5 then
-					if itemInfo.spell and self.LocalGeometry:IsInRange(myHero.pos, target.pos, itemInfo.spell.Range) then						
-						if self.LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO] and self.ActivatorMenu.Damage.Combo:Value() then
-							Control.CastSpell(self.ItemHotkeys[i], target)
-							break
-						else
-							local damage = self.LocalDamageManager:CalculateSkillDamage(myHero, target, itemInfo.spell)
-							if damage >= target.health and self.ActivatorMenu.Damage.Killsteal:Value() then
-								Control.CastSpell(self.ItemHotkeys[i], target)
-								break
-							end
-						end
+function __Activator:CleanseTarget(slot)
+	--Check if we want to activate only in combo or not	
+	if Activator.ActivatorMenu[3222].Combo:Value() and not Activator.LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO] then return end
+	
+	local spellData = myHero:GetSpellData(slot)
+	if spellData.currentCd < .5 then	
+		for h = 1, LocalGameHeroCount() do
+			local hero = LocalGameHero(h)
+			if CanTargetAlly(hero) and Activator.LocalGeometry:IsInRange(myHero.pos, hero.pos, spellData.range) and Activator.ActivatorMenu[3222].Targets[hero.networkID] and Activator.ActivatorMenu[3222].Targets[hero.networkID]:Value() then
+				for i = 0, hero.buffCount do
+					local buff = hero:GetBuff(i)
+					if buff.duration > 0 and Activator.ActivatorMenu[3222].CC[buff.type] and Activator.ActivatorMenu[3222].CC[buff.type]:Value() then
+						Control.CastSpell(Activator.ItemHotkeys[slot],hero)
+						return
 					end
 				end
 			end
 		end
 	end
+end
+
+
+function __Activator:RangedItem(slot)
+	local spellData = myHero:GetSpellData(slot)
+	if spellData.currentCd < .5 then
+		for i = 1, LocalGameHeroCount() do
+			local hero = LocalGameHero(i)
+			if CanTarget(hero) and Activator.LocalGeometry:IsInRange(myHero.pos, hero.pos, spellData.range) then
+				if Activator.LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO] and Activator.LocalGeometry:IsInRange(myHero.pos, hero.pos, Activator.ActivatorMenu.Damage.Ranged.Radius:Value()) then
+					Control.CastSpell(Activator.ItemHotkeys[slot], hero)
+				elseif Activator.ActivatorMenu.Damage.Ranged.Killsteal:Value() then
+					local damage = Activator.LocalDamageManager:CalculateSkillDamage(myHero, hero, spellData.name)
+					if damage >= hero.health then
+						Control.CastSpell(Activator.ItemHotkeys[slot], hero)				
+					end
+				end
+			end
+		end
+	end
+end
+
+function __Activator:AAResetItem(target, itemInfo, slot)
+	local spellData = myHero:GetSpellData(slot)
+	if spellData.currentCd < .5 then
+		if spellData.name and Activator.LocalGeometry:IsInRange(myHero.pos, target.pos, spellData.range) then
+			if Activator.LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO] and Activator.ActivatorMenu.Damage.AAReset.Combo:Value() then
+				Control.CastSpell(Activator.ItemHotkeys[slot])						
+			else
+				local damage = Activator.LocalDamageManager:CalculateSkillDamage(myHero, target, spellData.name)
+				if damage >= target.health and Activator.ActivatorMenu.Damage.AAReset.Killsteal:Value() then
+					Control.CastSpell(Activator.ItemHotkeys[slot])							
+				end
+			end
+		end
+	end
+end
+
+function __Activator:OnPostAttack()
+	--Check for E AA reset
+	if not myHero.activeSpell.target then return end
+	local target = Activator.LocalObjectManager:GetHeroByHandle(myHero.activeSpell.target)
+	if not target then return end
+
+	for i = 1, #self.ItemAttackCallbacks do
+		local cb = self.ItemAttackCallbacks[i]
+		cb:Tick(target, cb.Item, cb.Slot)
+	end	
 end
 
 Activator = __Activator()

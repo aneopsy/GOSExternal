@@ -15,9 +15,15 @@ local LocalGameParticleCount 		= Game.ParticleCount;
 local LocalGameParticle				= Game.Particle;
 local CastSpell 					= _G.Control.CastSpell
 local LocalGameIsChatOpen			= Game.IsChatOpen;
+local LocalGameLatency				= Game.Latency;
 local LocalStringSub				= string.sub;
 local LocalStringLen				= string.len;
+local LocalStringFind				= string.find;
+local LocalTableSort				= table.sort;
 local LocalPairs					= pairs;
+local LocalMathAbs					= math.abs;
+local LocalMathMin					= math.min;
+local LocalMathMax					= math.max;
 
 function StringEndsWith(str, word)
 	return LocalStringSub(str, - LocalStringLen(word)) == word;
@@ -53,6 +59,14 @@ function GetTarget(range, isAD)
 	end
 end
 
+function ComboActive()
+	return LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_COMBO]
+end
+
+function HarassActive()
+	return LocalOrbwalker.Modes[_G.SDK.ORBWALKER_MODE_HARASS]
+end
+
 
 function EnableOrb(bool)
     if _G.EOWLoaded then
@@ -63,6 +77,16 @@ function EnableOrb(bool)
         _G.SDK.Orbwalker:SetAttack(bool)
     else
         GOS.BlockMovement = not bool
+        GOS.BlockAttack = not bool
+    end
+end
+
+function EnableOrbAttacks(bool)
+    if _G.EOWLoaded then
+        EOW:SetAttacks(bool)
+    elseif _G.SDK and _G.SDK.Orbwalker then
+        _G.SDK.Orbwalker:SetAttack(bool)
+    else
         GOS.BlockAttack = not bool
     end
 end
@@ -187,7 +211,8 @@ end
 
 local remaining = 30 - Game.Timer()
 print(myHero.charName .. " will load shortly")
-DelayAction(function()
+DelayAction(function()	
+	LocalOrbwalker = _G.SDK.Orbwalker
 	LocalGeometry = _G.Alpha.Geometry
 	LocalBuffManager = _G.Alpha.BuffManager
 	LocalObjectManager = _G.Alpha.ObjectManager
