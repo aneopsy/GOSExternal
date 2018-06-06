@@ -13,7 +13,7 @@ Data = {
         },
         Cassiopeia = {
             Changelog = "Cassiopeia Changelog Here",
-            Version = 1.1,
+            Version = 1.2,
         },
         Fiora = {
             Changelog = "Fiora Changelog Here",
@@ -23,8 +23,16 @@ Data = {
             Changelog = "Soraka Changelog Here",
             Version = 1.1,
         },
+        Garen = {
+            Changelog = "Garen Changelog Here",
+            Version = 1,
+        },
         Heimerdinger = {
             Changelog = "Heimerdinger Changelog Here",
+            Version = 1.1,
+        },
+        Illaoi = {
+            Changelog = "Illaoi Changelog Here",
             Version = 1.1,
         },
         Karthus = {
@@ -37,7 +45,7 @@ Data = {
         },
         Lux = {
             Changelog = "Lux Changelog Here",
-            Version = 1.21,
+            Version = 1.22,
         },
         Lulu = {
             Changelog = "Lulu Changelog Here",
@@ -51,9 +59,13 @@ Data = {
             Changelog = "Morgana Changelog Here",
             Version = 1.1,
         },
+        Nami = {
+            Changelog = "Nami Changelog Here",
+            Version = 1.1,
+        },
         Pyke = {
             Changelog = "Pyke Changelog Here",
-            Version = 1.1,
+            Version = 1.2,
         },
         Taliyah = {
             Changelog = "Taliyah Changelog Here",
@@ -61,7 +73,7 @@ Data = {
         },
         Xerath = {
             Changelog = "Xerath Changelog Here",
-            Version = 1.2,
+            Version = 1.3,
         },
         Ziggs = {
             Changelog = "Ziggs Changelog Here",
@@ -74,11 +86,11 @@ Data = {
     },
     Core = {
         Changelog = "Auto Version ChangeLog Here",
-        Version = 1.62,
+        Version = 1.65,
     },
     Dependencies = {
         Alpha = {
-            Version = 1.53,
+            Version = 1.6,
         },
         Activator = {
             Version = 1.6,

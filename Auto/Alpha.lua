@@ -135,7 +135,7 @@ function __Geometry:Angle(A, B)
 end
 
 function __Geometry:IsInRange(p1, p2, range)
-	if not p1 or not p2 then
+	if not p1 or not p2 or not p1.x or not p2.x then
 		local dInfo = debug.getinfo(2)
 		print("Undefined IsInRange target. Please report. Method: " .. dInfo.name .. "  Line: " .. dInfo.linedefined)
 		return false
@@ -163,15 +163,8 @@ function __Geometry:GetCastPosition(source, target, range, delay, speed, radius,
 	local aimPosition = target.pos
 	if hitChance > 0 then
 	
-		local reactionTime = self:PredictReactionTime(target, .15)
-		local adjustedDelay = 0
-		if target.activeSpell and target.activeSpell.valid and not target.activeSpell.spellWasCast then
-			adjustedDelay = LocalGameTimer() - target.activeSpell.startTime + target.activeSpell.windup
-			if adjustedDelay < 0 then
-				adjustedDelay = 0
-			end
-		end
-		aimPosition = self:PredictUnitPosition(target, delay + self:GetDistance(source.pos, target.pos) / speed - adjustedDelay)	
+		local reactionTime = self:PredictReactionTime(target, .15)		
+		aimPosition = self:PredictUnitPosition(target, delay + self:GetDistance(source.pos, target.pos) / speed )	
 		local interceptTime = self:GetSpellInterceptTime(source.pos, aimPosition, delay, speed)
 		
 		if not target.pathing or not target.pathing.hasMovePath then
@@ -190,7 +183,13 @@ function __Geometry:GetCastPosition(source, target, range, delay, speed, radius,
 		end
 		
 		local origin,movementRadius = self:UnitMovementBounds(target, interceptTime, reactionTime)
-		if movementRadius <= radius  then				
+		if movementRadius <= radius  then
+			if target.activeSpell and target.activeSpell.valid and not target.activeSpell.spellWasCast then
+				adjustedDelay = LocalGameTimer() - target.activeSpell.startTime + target.activeSpell.windup
+				if adjustedDelay > 0 then
+					aimPosition = self:PredictUnitPosition(target, delay + self:GetDistance(source.pos, target.pos) / speed - adjustedDelay)
+				end
+			end
 			hitChance = 3
 		end
 		
@@ -566,7 +565,7 @@ function __ObjectManager:Tick()
 				if self.CachedParticles[particle.networkID] then
 					self.CachedParticles[particle.networkID].valid = true
 				else
-					local particleData = { valid = true, networkID = particle.networkID,  pos = particle.pos, name = particle.name}
+					local particleData = { valid = true, networkID = particle.networkID,  pos = particle.pos, name = particle.name, data = particle}
 					self.CachedParticles[particle.networkID] =particleData
 					self:ParticleCreated(particleData)
 				end
@@ -1889,13 +1888,14 @@ function __DamageManager:__init()
 		--[GAREN SKILLS]--
 		["GarenQ"] = 
 		{
+			Alias = "GarentQAttack",
 			SpellName = "Garen",
 			HeroName = "Decisive Strike",
 			SpellSlot = _Q,
 			DamageType = DAMAGE_TYPE_PHYSICAL,
 			TargetType = TARGET_TYPE_SINGLE,						
 			Damage = {30,65,100,135,170},
-			ADScaling = .4,
+			ADScaling = 1.4,
 			Danger = 1,
 			CCType = BUFF_SILENCE,
 		},
@@ -1908,7 +1908,7 @@ function __DamageManager:__init()
 			TargetType = TARGET_TYPE_SINGLE,						
 			Damage = {175,350,525},
 			MissingHealth = {.286,.333,.4},
-			Danger = 1,
+			Danger = 4,
 		},
 		
 		--[GNAR SKILLS]--
